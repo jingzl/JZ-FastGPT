@@ -8,7 +8,6 @@ import { AppScheduledTriggerConfigType } from '@fastgpt/global/core/app/type';
 import MyModal from '@fastgpt/web/components/common/MyModal';
 import dynamic from 'next/dynamic';
 import type { MultipleSelectProps } from '@fastgpt/web/components/common/MySelect/type.d';
-import { useForm } from 'react-hook-form';
 import { cronParser2Fields } from '@fastgpt/global/common/string/time';
 import TimezoneSelect from '@fastgpt/web/components/common/MySelect/TimezoneSelect';
 
@@ -92,20 +91,15 @@ const ScheduledTriggerConfig = ({
   value,
   onChange
 }: {
-  value: AppScheduledTriggerConfigType | null;
-  onChange: (e: AppScheduledTriggerConfigType | null) => void;
+  value?: AppScheduledTriggerConfigType;
+  onChange: (e?: AppScheduledTriggerConfigType) => void;
 }) => {
   const { t } = useTranslation();
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const { register, setValue, watch } = useForm<AppScheduledTriggerConfigType>({
-    defaultValues: {
-      cronString: value?.cronString || '',
-      timezone: value?.timezone,
-      defaultPrompt: value?.defaultPrompt || ''
-    }
-  });
-  const timezone = watch('timezone');
-  const cronString = watch('cronString');
+
+  const timezone = value?.timezone;
+  const cronString = value?.cronString;
+  const defaultPrompt = value?.defaultPrompt;
 
   const cronSelectList = useRef<MultipleSelectProps['list']>([
     {
@@ -130,15 +124,34 @@ const ScheduledTriggerConfig = ({
     }
   ]);
 
+  const onUpdate = useCallback(
+    ({
+      cronString,
+      timezone,
+      defaultPrompt
+    }: {
+      cronString?: string;
+      timezone?: string;
+      defaultPrompt?: string;
+    }) => {
+      onChange({
+        cronString: cronString ?? value?.cronString ?? '0 0 * * *',
+        timezone: timezone ?? value?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
+        defaultPrompt: defaultPrompt ?? value?.defaultPrompt ?? ''
+      });
+    },
+    [onChange, value]
+  );
+
   /* cron string to config field */
   const cronConfig = useMemo(() => {
     if (!cronString) {
-      return null;
+      return;
     }
     const cronField = cronParser2Fields(cronString);
 
     if (!cronField) {
-      return null;
+      return;
     }
 
     if (cronField.dayOfMonth.length !== 31) {
@@ -169,19 +182,22 @@ const ScheduledTriggerConfig = ({
 
   const cronConfig2cronString = useCallback(
     (e: CronFieldType) => {
-      if (e[0] === CronJobTypeEnum.month) {
-        setValue('cronString', `0 ${e[2]} ${e[1]} * *`);
-      } else if (e[0] === CronJobTypeEnum.week) {
-        setValue('cronString', `0 ${e[2]} * * ${e[1]}`);
-      } else if (e[0] === CronJobTypeEnum.day) {
-        setValue('cronString', `0 ${e[1]} * * *`);
-      } else if (e[0] === CronJobTypeEnum.interval) {
-        setValue('cronString', `0 */${e[1]} * * *`);
-      } else {
-        setValue('cronString', '');
-      }
+      const str = (() => {
+        if (e[0] === CronJobTypeEnum.month) {
+          return `0 ${e[2]} ${e[1]} * *`;
+        } else if (e[0] === CronJobTypeEnum.week) {
+          return `0 ${e[2]} * * ${e[1]}`;
+        } else if (e[0] === CronJobTypeEnum.day) {
+          return `0 ${e[1]} * * *`;
+        } else if (e[0] === CronJobTypeEnum.interval) {
+          return `0 */${e[1]} * * *`;
+        } else {
+          return '';
+        }
+      })();
+      onUpdate({ cronString: str });
     },
-    [setValue]
+    [onUpdate]
   );
 
   // cron config to show label
@@ -216,22 +232,9 @@ const ScheduledTriggerConfig = ({
     return t('common.Not open');
   }, [cronField, isOpenSchedule, t]);
 
-  // update value
-  watch((data) => {
-    if (!data.cronString) {
-      onChange(null);
-      return;
-    }
-    onChange({
-      cronString: data.cronString,
-      timezone: data.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
-      defaultPrompt: data.defaultPrompt || ''
-    });
-  });
-
   useEffect(() => {
     if (!value?.timezone) {
-      setValue('timezone', Intl.DateTimeFormat().resolvedOptions().timeZone);
+      onUpdate({ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone });
     }
   }, []);
 
@@ -272,9 +275,9 @@ const ScheduledTriggerConfig = ({
                 isChecked={isOpenSchedule}
                 onChange={(e) => {
                   if (e.target.checked) {
-                    setValue('cronString', defaultCronString);
+                    onUpdate({ cronString: defaultCronString });
                   } else {
-                    setValue('cronString', '');
+                    onUpdate({ cronString: '' });
                   }
                 }}
               />
@@ -300,18 +303,21 @@ const ScheduledTriggerConfig = ({
                     <TimezoneSelect
                       value={timezone}
                       onChange={(e) => {
-                        setValue('timezone', e);
+                        onUpdate({ timezone: e });
                       }}
                     />
                   </Box>
                 </Flex>
                 <Box mt={5}>
-                  <Box>{t('core.app.schedule.Default prompt')}</Box>
+                  <Box mb={1}>{t('core.app.schedule.Default prompt')}</Box>
                   <Textarea
-                    {...register('defaultPrompt')}
+                    value={defaultPrompt}
                     rows={8}
                     bg={'myGray.50'}
                     placeholder={t('core.app.schedule.Default prompt placeholder')}
+                    onChange={(e) => {
+                      onUpdate({ defaultPrompt: e.target.value });
+                    }}
                   />
                 </Box>
               </>
@@ -323,13 +329,13 @@ const ScheduledTriggerConfig = ({
   }, [
     cronConfig2cronString,
     cronField,
+    defaultPrompt,
     formatLabel,
     isOpen,
     isOpenSchedule,
     onClose,
     onOpen,
-    register,
-    setValue,
+    onUpdate,
     t,
     timezone
   ]);
