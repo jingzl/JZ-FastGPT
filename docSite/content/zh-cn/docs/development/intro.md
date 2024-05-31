@@ -16,8 +16,9 @@ weight: 705
 
 - [Git](http://git-scm.com/)
 - [Docker](https://www.docker.com/)（构建镜像）
-- [Node.js v18.x (不推荐最新的，可能有兼容问题)](http://nodejs.org)
-- [pnpm](https://pnpm.io/) 版本 8.x.x 
+- [Node.js v18.17 / v20.x](http://nodejs.org)
+- [pnpm](https://pnpm.io/) 版本 8.6.0 (目前官方的开发环境)
+- make命令: 根据不同平台，百度安装 (官方是GNU Make 4.3)
 
 ## 开始本地开发
 
@@ -72,24 +73,34 @@ Mongo 数据库需要注意，需要注意在连接地址中增加 `directConnec
 
 ### 5. 运行
 
+可参考项目根目录下的 `dev.md`
+
 ```bash
 # 给自动化脚本代码执行权限(非 linux 系统, 可以手动执行里面的 postinstall.sh 文件内容)
 chmod -R +x ./scripts/
 # 代码根目录下执行，会安装根 package、projects 和 packages 内所有依赖
 pnpm i
-# 切换到应用目录
-cd projects/app 
-# 开发模式运行
+
+# 非 Make 运行
+cd projects/app
 pnpm dev
+
+# Make 运行
+make dev name=app
 ```
 
 ### 6. 部署打包
 
 ```bash
-# 根目录下执行
-docker build -t dockername/fastgpt:tag --build-arg name=app .
-# 使用代理
-docker build -t dockername/fastgpt:tag --build-arg name=app --build-arg proxy=taobao .
+# Docker cmd: Build image, not proxy
+docker build -f ./projects/app/Dockerfile -t registry.cn-hangzhou.aliyuncs.com/fastgpt/fastgpt:v4.8.1 . --build-arg name=app
+# Make cmd: Build image, not proxy
+make build name=app image=registry.cn-hangzhou.aliyuncs.com/fastgpt/fastgpt:v4.8.1
+
+# Docker cmd: Build image with proxy
+docker build -f ./projects/app/Dockerfile -t registry.cn-hangzhou.aliyuncs.com/fastgpt/fastgpt:v4.8.1 . --build-arg name=app --build-arg proxy=taobao
+# Make cmd: Build image with proxy
+make build name=app image=registry.cn-hangzhou.aliyuncs.com/fastgpt/fastgpt:v4.8.1 proxy=taobao
 ```
 
 ## 提交代码至开源仓库
@@ -101,21 +112,21 @@ docker build -t dockername/fastgpt:tag --build-arg name=app --build-arg proxy=ta
 如果遇到问题，比如合并冲突或不知道如何打开拉取请求，请查看 GitHub 的[拉取请求教程](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests)，了解如何解决合并冲突和其他问题。一旦您的 PR 被合并，您将自豪地被列为[贡献者表](https://github.com/labring/FastGPT/graphs/contributors)中的一员。
 
 
-
 ## QA
 
 ### 本地数据库无法连接
 
 1. 如果你是连接远程的数据库，先检查对应的端口是否开放。
 2. 如果是本地运行的数据库，可尝试`host`改成`localhost`或`127.0.0.1`
+3. 本地连接远程的 Mongo，需要增加 `directConnection=true` 参数，才能连接上副本集的数据库。
+4. mongo使用`mongocompass`客户端进行连接测试和可视化管理。
+5. pg使用`navicat`进行连接和管理。
 
 ### sh ./scripts/postinstall.sh 没权限
 
 FastGPT 在`pnpm i`后会执行`postinstall`脚本，用于自动生成`ChakraUI`的`Type`。如果没有权限，可以先执行`chmod -R +x ./scripts/`，再执行`pnpm i`。
 
-### 长时间运行后崩溃
-
-似乎是由于 tiktoken 库的开发环境问题，生产环境中未遇到，暂时可忽略。
+仍不可行的话，可以手动执行`./scripts/postinstall.sh`里的内容。
 
 ### TypeError: Cannot read properties of null (reading 'useMemo' )
 
@@ -133,3 +144,57 @@ FastGPT 在`pnpm i`后会执行`postinstall`脚本，用于自动生成`ChakraUI
 遇到困难了吗？有任何问题吗? 加入微信群与开发者和用户保持沟通。
 
 <img width="400px" src="https://oss.laf.run/htr4n1-images/fastgpt-qr-code.jpg" class="medium-zoom-image" />
+
+## 代码结构说明
+
+### nextjs
+
+FastGPT 使用了 nextjs 的 page route 作为框架。为了区分好前后端代码，在目录分配上会分成 global, service, web 3个自目录，分别对应着 `前后端共用`、`后端专用`、`前端专用`的代码。
+
+### monorepo
+FastGPT 采用 pnpm workspace 方式构建 monorepo 项目，主要分为两个部分：
+
+- projects/app - FastGPT 主项目  
+- packages/ - 子模块  
+  - global - 共用代码，通常是放一些前后端都能执行的函数、类型声明、常量。  
+  - service - 服务端代码  
+  - web - 前端代码  
+  - plugin - 工作流自定义插件的代码  
+
+### 领域驱动模式（DDD）
+
+FastGPT 在代码模块划分时，按DDD的思想进行划分，主要分为以下几个领域：
+
+core - 核心功能（知识库，工作流，应用，对话）
+support - 支撑功能（用户体系，计费，鉴权等）
+common - 基础功能（日志管理，文件读写等）
+
+{{% details title="代码结构说明" closed="true" %}}
+```
+.
+├── .github                      // github 相关配置
+├── .husky                       // 格式化配置
+├── docSite                      // 文档
+├── files                        // 一些外部文件，例如 docker-compose, helm
+├── packages                     // 子包
+│   ├── global                   // 前后端通用子包
+│   ├── plugins                  // 工作流插件（需要自定义包时候使用到）
+│   ├── service                  // 后端子包
+│   └── web                      // 前端子包
+├── projects
+│   └── app                      // FastGPT 主项目
+├── python                       // 存放一些模型代码，和 FastGPT 本身无关
+└── scripts                      // 一些自动化脚本
+    ├── icon                     // icon预览脚本，可以在顶层 pnpm initIcon(把svg写入到代码中), pnpm previewIcon（预览icon）
+    └── postinstall.sh           // chakraUI自定义theme初始化 ts 类型
+├── package.json                 // 顶层monorepo
+├── pnpm-lock.yaml
+├── pnpm-workspace.yaml          // monorepo 声明
+├── Dockerfile
+├── LICENSE
+├── README.md
+├── README_en.md
+├── README_ja.md
+├── dev.md
+```
+{{% /details %}}
