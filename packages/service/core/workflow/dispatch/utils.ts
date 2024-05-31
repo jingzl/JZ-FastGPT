@@ -3,12 +3,7 @@ import {
   WorkflowIOValueTypeEnum,
   NodeOutputKeyEnum
 } from '@fastgpt/global/core/workflow/constants';
-import { FlowNodeTypeEnum } from '@fastgpt/global/core/workflow/node/constant';
-import {
-  RuntimeEdgeItemType,
-  RuntimeNodeItemType
-} from '@fastgpt/global/core/workflow/runtime/type';
-import { StoreNodeItemType } from '@fastgpt/global/core/workflow/type/index.d';
+import { RuntimeEdgeItemType } from '@fastgpt/global/core/workflow/runtime/type';
 
 export const filterToolNodeIdByEdges = ({
   nodeId,
@@ -62,7 +57,10 @@ export const valueTypeFormat = (value: any, type?: WorkflowIOValueTypeEnum) => {
     return JSON.stringify(value);
   }
   if (type === 'number') return Number(value);
-  if (type === 'boolean') return Boolean(value);
+  if (type === 'boolean') {
+    if (typeof value === 'string') return value === 'true';
+    return Boolean(value);
+  }
   try {
     if (type === WorkflowIOValueTypeEnum.datasetQuote && !Array.isArray(value)) {
       return JSON.parse(value);
@@ -75,4 +73,28 @@ export const valueTypeFormat = (value: any, type?: WorkflowIOValueTypeEnum) => {
   }
 
   return value;
+};
+
+/* remove system variable */
+export const removeSystemVariable = (variables: Record<string, any>) => {
+  const copyVariables = { ...variables };
+  delete copyVariables.appId;
+  delete copyVariables.chatId;
+  delete copyVariables.responseChatItemId;
+  delete copyVariables.histories;
+  delete copyVariables.cTime;
+
+  return copyVariables;
+};
+
+export const formatHttpError = (error: any) => {
+  return {
+    message: error?.message,
+    name: error?.name,
+    method: error?.config?.method,
+    baseURL: error?.config?.baseURL,
+    url: error?.config?.url,
+    code: error?.code,
+    status: error?.status
+  };
 };

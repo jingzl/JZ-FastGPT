@@ -1,3 +1,4 @@
+import { PermissionValueType } from 'support/permission/type';
 import { TeamMemberRoleEnum } from './constant';
 import { LafAccountType, TeamMemberSchema } from './type';
 
@@ -13,7 +14,6 @@ export type CreateTeamProps = {
   lafAccount?: LafAccountType;
 };
 export type UpdateTeamProps = {
-  teamId: string;
   name?: string;
   avatar?: string;
   teamDomain?: string;
@@ -44,3 +44,9 @@ export type InviteMemberResponse = Record<
   'invite' | 'inValid' | 'inTeam',
   { username: string; userId: string }[]
 >;
+
+export type UpdateTeamMemberPermissionProps = {
+  teamId: string;
+  memberIds: string[];
+  permission: PermissionValueType;
+};
