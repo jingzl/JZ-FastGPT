@@ -1,10 +1,15 @@
 基于FastGPT进行修改本地化处理。
 
-## 本地编译后清理
-- node_modules 
+
+## 本地编译
+- Node.js v18.17 / v20.x
+- pnpm 版本 8.6.0 (目前官方的开发环境)
+- 本地编译后清理：node_modules 
 
 
 ## 系统部署
+- 源仓库更新说明：docSite\content\zh-cn\docs\development\upgrading。
+- tconfig：包含各版本的 config 和 yml 文件信息，用于拉取镜像。
 
 
 
