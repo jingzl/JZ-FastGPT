@@ -9,11 +9,13 @@
 
 ## 系统部署
 - 源仓库更新说明：docSite\content\zh-cn\docs\development\upgrading。
-- tconfig：包含各版本的 config 和 yml 文件信息，用于拉取镜像。
+- tbgconfig：包含各版本的 config 和 yml 文件信息，用于拉取镜像。
 
 
 
 ## 更新日志
+
+[24/7/1] 同步更新源仓库代码，版本4.8.5 @ 20240701。保留了对SystemTile、ICO等配置的调整。
 
 [24/6/8] 同步更新源仓库代码，版本4.8.3 @ 20240608。保留了对SystemTile、ICO等配置的调整。
 
